@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Citra Digital - Image Filter</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <script>
+        // Kustomisasi Tailwind
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    animation: { 'aurora': 'aurora 80s linear infinite' },
+                    keyframes: {
+                        aurora: {
+                            'from': { transform: 'translate(0px, 0px) rotate(0deg)' },
+                            'to': { transform: 'translate(1000px, 700px) rotate(180deg)' },
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .glass-pane {
+            background-color: rgba(255, 255, 255, 0.75);
+            -webkit-backdrop-filter: blur(24px);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .text-gradient {
+            background: linear-gradient(90deg, #6d28d9, #db2777);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .button-gradient {
+            background-image: linear-gradient(to right, #7e22ce 0%, #a855f7 50%, #d946ef 100%);
+            background-size: 200% auto;
+            transition: all 0.3s;
+        }
+        .button-gradient:hover { background-position: right center; }
+        
+        input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; width: 100%; }
+        input[type="range"]::-webkit-slider-runnable-track { background-color: #e5e7eb; height: 6px; border-radius: 3px; }
+        input[type="range"]::-moz-range-track { background-color: #e5e7eb; height: 6px; border-radius: 3px; }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; margin-top: -5px;
+            background-color: #a855f7; height: 16px; width: 16px;
+            border-radius: 9999px; box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+            transition: transform 0.1s ease;
+        }
+        input[type="range"]::-moz-range-thumb {
+            background-color: #a855f7; height: 16px; width: 16px; border-radius: 9999px;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.5); border: none; transition: transform 0.1s ease;
+        }
+        input[type="range"]:active::-webkit-slider-thumb, input[type="range"]:active::-moz-range-thumb { transform: scale(1.25); }
+
+        .cursor-zoom-in { cursor: zoom-in; }
+    </style>
+</head>
+<body class="h-full font-sans text-gray-800 bg-gray-50 overflow-hidden">
+
+    <div class="fixed top-0 left-0 w-full h-full -z-10 overflow-hidden">
+        <div class="absolute -top-[50%] -left-[50%] w-[200%] h-[200%]">
+            <div class="absolute inset-0 animate-aurora">
+                <div class="absolute w-[1000px] h-[1000px] rounded-full bg-gradient-to-r from-violet-200 to-rose-200 opacity-50 -translate-x-[20%] -translate-y-[20%] blur-3xl"></div>
+                <div class="absolute w-[800px] h-[800px] rounded-full bg-gradient-to-r from-sky-200 to-fuchsia-200 opacity-50 top-1/2 left-1/2 blur-3xl"></div>
+            </div>
+        </div>
+    </div>
+    
+    <main class="flex flex-col items-center justify-center min-h-full p-4 sm:p-6 lg:p-8">
+        <div class="w-full max-w-6xl mx-auto">
+            <div class="glass-pane rounded-2xl shadow-2xl shadow-gray-200/50 overflow-hidden">
+                <div class="border-b border-black/5 p-5 sm:p-6 text-center">
+                    <h3 class="text-2xl sm:text-3xl font-bold text-gray-900 tracking-wider">
+                        <span class="text-gradient">Website</span> Image Filter
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-1">Kelompok 3 - Pengolahan Citra Digital</p>
+                </div>
+
+                <div class="p-5 sm:p-6 lg:p-8">
+                    <div id="uploadArea" class="cursor-pointer">
+                        <div class="relative border-2 border-dashed border-gray-300 rounded-xl p-8 sm:p-12 text-center transition-all duration-300 hover:border-violet-500 hover:bg-violet-50/50 group">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-5 border border-gray-200 transition-all group-hover:bg-violet-100 group-hover:border-violet-300 group-hover:scale-110">
+                                    <i class="bi bi-cloud-arrow-up text-3xl text-gray-500 transition-all group-hover:text-violet-600"></i>
+                                </div>
+                                <h4 class="text-lg font-semibold text-gray-800">Upload an Image</h4>
+                                <p class="mt-1 text-gray-500 text-sm max-w-xs">Click to browse or drag & drop</p>
+                            </div>
+                            <input type="file" id="imageUpload" class="absolute inset-0 w-full h-full opacity-0" accept="image/*">
+                        </div>
+                    </div>
+
+                    <div id="editorContainer" class="hidden">
+                        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+                            <!-- Custom Dropdown for Filters -->
+                            <div class="lg:col-span-3">
+                                <label for="filterSelect" class="block text-sm font-medium text-gray-600 mb-2">Filter</label>
+                                <div class="relative" id="customFilterDropdown">
+                                    <!-- Visible button that looks like an input field -->
+                                    <button type="button" id="filterTrigger" class="relative w-full cursor-pointer rounded-lg bg-white/80 py-2.5 pl-4 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-500 sm:text-sm sm:leading-6 transition-all">
+                                        <span class="block truncate">Original</span>
+                                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                <path fill-rule="evenodd" d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 7.03 7.78a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.78 9.28a.75.75 0 011.06 0L10 15.19l2.97-2.91a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z" clip-rule="evenodd" />
+                                            </svg>
+                                        </span>
+                                    </button>
+
+                                    <!-- Dropdown options panel -->
+                                    <ul id="filterOptions" class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm transition-all ease-in-out duration-100 opacity-0 hidden" role="listbox">
+                                        <li class="text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-violet-100" data-value="identity">
+                                            <span class="font-semibold block truncate">Original</span>
+                                        </li>
+                                        <li class="text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-violet-100" data-value="grayscale">
+                                            <span class="font-normal block truncate">Grayscale</span>
+                                        </li>
+                                        <li class="text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-violet-100" data-value="sepia">
+                                            <span class="font-normal block truncate">Sepia</span>
+                                        </li>
+                                        <li class="text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-violet-100" data-value="invert">
+                                            <span class="font-normal block truncate">Invert</span>
+                                        </li>
+                                        <li class="text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-violet-100" data-value="sharpen">
+                                            <span class="font-normal block truncate">Sharpen</span>
+                                        </li>
+                                        <li class="text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-violet-100" data-value="edge">
+                                            <span class="font-normal block truncate">Edge Detection</span>
+                                        </li>
+                                        <li class="text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-violet-100" data-value="emboss">
+                                            <span class="font-normal block truncate">Emboss</span>
+                                        </li>
+                                        <li class="text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-violet-100" data-value="blur">
+                                            <span class="font-normal block truncate">Blur</span>
+                                        </li>
+                                    </ul>
+                                    <!-- Hidden input to store the selected filter value -->
+                                    <input type="hidden" id="filterSelect" value="identity">
+                                </div>
+                            </div>
+                            <div class="lg:col-span-2 flex flex-col sm:flex-row gap-3">
+                                 <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-2 invisible">Actions</label>
+                                    <button id="resetButton" onclick="resetAll()" class="w-full justify-center text-sm font-semibold py-2.5 px-4 bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 rounded-lg transition-all flex items-center gap-2">
+                                        <i class="bi bi-arrow-counterclockwise text-base"></i> Reset
+                                    </button>
+                                </div>
+                                <div class="flex-grow">
+                                    <label class="block text-sm font-medium text-gray-600 mb-2 invisible">Download</label>
+                                    <a href="#" id="downloadButton" download="filtered-image.png" class="w-full block text-center text-sm font-semibold py-2.5 px-4 text-white rounded-lg transition-all flex items-center gap-2 justify-center button-gradient shadow-lg shadow-purple-200">
+                                        <i class="bi bi-download text-base"></i> Download Image
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                            <div class="bg-white/50 rounded-xl p-6 border border-black/5">
+                                <h5 class="text-lg font-semibold text-gray-900 mb-5">Adjustments</h5>
+                                <div class="space-y-6">
+                                    <div>
+                                        <div class="flex justify-between items-center mb-2">
+                                            <label for="brightness" class="font-medium text-sm text-gray-700">Brightness</label>
+                                            <span id="brightnessValue" class="text-sm font-bold text-violet-600">0</span>
+                                        </div>
+                                        <input type="range" id="brightness" min="-100" max="100" value="0">
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between items-center mb-2">
+                                            <label for="contrast" class="font-medium text-sm text-gray-700">Contrast</label>
+                                            <span id="contrastValue" class="text-sm font-bold text-violet-600">0</span>
+                                        </div>
+                                        <input type="range" id="contrast" min="-100" max="100" value="0">
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between items-center mb-2">
+                                            <label for="saturation" class="font-medium text-sm text-gray-700">Saturation</label>
+                                            <span id="saturationValue" class="text-sm font-bold text-violet-600">0</span>
+                                        </div>
+                                        <input type="range" id="saturation" min="-100" max="100" value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-3">
+                                    <label class="font-semibold text-gray-800">Original</label>
+                                    <div class="relative group">
+                                        <img src="" id="originalImage" class="w-full h-auto rounded-xl border border-black/10 shadow-lg shadow-gray-200/70 cursor-zoom-in" alt="Original Image">
+                                        <div class="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <button onclick="showUploadArea()" class="font-semibold py-2 px-5 bg-white/50 backdrop-blur-sm border border-white/20 text-white rounded-full transition-all hover:bg-white/70 hover:text-black flex items-center gap-2">
+                                                <i class="bi bi-arrow-repeat"></i> Change Image
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="space-y-3 relative group">
+                                    <label class="font-semibold text-gray-800">Filtered</label>
+                                    <img src="" id="processedImage" class="w-full h-auto rounded-xl border border-black/10 shadow-lg shadow-gray-200/70 cursor-zoom-in" alt="Processed Image">
+                                    
+                                    <!-- Small Processing Spinner -->
+                                    <div id="smallProcessingSpinner" class="hidden absolute inset-0 bg-white/60 rounded-xl z-10 items-center justify-center">
+                                        <div class="w-8 h-8 border-4 border-t-purple-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                                    </div>
+
+                                    <!-- Filter Info Overlay -->
+                                    <div id="filterInfo" class="absolute bottom-0 left-0 right-0 p-3 bg-black/20 backdrop-blur-sm rounded-b-xl text-white text-sm text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                        <span>Filter: Original</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+        <span id="lightboxClose" class="absolute top-4 right-6 text-white text-5xl font-bold cursor-pointer hover:text-gray-300 transition-colors">&times;</span>
+        <img id="lightboxImage" src="" class="max-w-[95vw] max-h-[95vh] object-contain" alt="Zoomed Image">
+    </div>
+    
+    <script>
+    // --- DOM ELEMENTS ---
+    const uploadArea = document.getElementById('uploadArea');
+    const editorContainer = document.getElementById('editorContainer');
+    const imageUpload = document.getElementById('imageUpload');
+    const originalImageEl = document.getElementById('originalImage');
+    const processedImageEl = document.getElementById('processedImage');
+    const downloadButton = document.getElementById('downloadButton');
+    const smallSpinner = document.getElementById('smallProcessingSpinner');
+    const filterInfoEl = document.getElementById('filterInfo').querySelector('span');
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImage = document.getElementById('lightboxImage');
+    const lightboxClose = document.getElementById('lightboxClose');
+    const filterTrigger = document.getElementById('filterTrigger');
+    const filterOptions = document.getElementById('filterOptions');
+    const filterSelectInput = document.getElementById('filterSelect');
+
+    // --- STATE ---
+    let originalImageBase64 = null;
+    let debounceTimer;
+
+    // --- EVENT LISTENERS ---
+    document.addEventListener('DOMContentLoaded', () => {
+        setupUploadArea();
+        setupSliders();
+        setupLightbox();
+        setupCustomDropdown(); // Initialize the custom dropdown
+    });
+
+    function setupUploadArea() {
+        imageUpload.addEventListener('change', e => handleImageUpload(e.target.files[0]));
+        ['dragover', 'drop'].forEach(eventName => uploadArea.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        }));
+        uploadArea.addEventListener('drop', e => handleImageUpload(e.dataTransfer.files[0]));
+    }
+
+    function setupSliders() {
+        ['brightness', 'contrast', 'saturation'].forEach(id => {
+            const slider = document.getElementById(id);
+            slider.addEventListener('input', () => {
+                document.getElementById(id + 'Value').textContent = slider.value;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => applyAndProcessImage(), 300);
+            });
+            slider.addEventListener('change', () => {
+                 clearTimeout(debounceTimer);
+                 applyAndProcessImage();
+            });
+        });
+    }
+
+    function setupLightbox() {
+        originalImageEl.addEventListener('click', () => openLightbox(originalImageEl.src));
+        processedImageEl.addEventListener('click', () => openLightbox(processedImageEl.src));
+        lightboxClose.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) { closeLightbox(); }
+        });
+    }
+
+    function setupCustomDropdown() {
+        filterTrigger.addEventListener('click', () => {
+            const isHidden = filterOptions.classList.contains('hidden');
+            if (isHidden) {
+                filterOptions.classList.remove('hidden');
+                setTimeout(() => filterOptions.classList.remove('opacity-0'), 10);
+            } else {
+                filterOptions.classList.add('opacity-0');
+                setTimeout(() => filterOptions.classList.add('hidden'), 100);
+            }
+        });
+
+        filterOptions.querySelectorAll('li').forEach(option => {
+            option.addEventListener('click', () => {
+                const selectedValue = option.getAttribute('data-value');
+                const selectedText = option.querySelector('span').textContent;
+
+                filterTrigger.querySelector('span').textContent = selectedText;
+                filterSelectInput.value = selectedValue;
+
+                // Visually mark the selected option
+                filterOptions.querySelectorAll('li span').forEach(span => span.classList.remove('font-semibold'));
+                option.querySelector('span').classList.add('font-semibold');
+
+                filterOptions.classList.add('opacity-0');
+                setTimeout(() => filterOptions.classList.add('hidden'), 100);
+
+                applyAndProcessImage();
+            });
+        });
+
+        window.addEventListener('click', (e) => {
+            if (!document.getElementById('customFilterDropdown').contains(e.target)) {
+                filterOptions.classList.add('opacity-0');
+                setTimeout(() => filterOptions.classList.add('hidden'), 100);
+            }
+        });
+    }
+
+    // --- LIGHTBOX FUNCTIONS ---
+    function openLightbox(src) {
+        if (!src) return;
+        lightboxImage.src = src;
+        lightbox.classList.remove('hidden');
+        lightbox.classList.add('flex');
+    }
+
+    function closeLightbox() {
+        lightbox.classList.add('hidden');
+        lightbox.classList.remove('flex');
+        lightboxImage.src = '';
+    }
+
+    // --- CORE LOGIC ---
+    function handleImageUpload(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        
+        const reader = new FileReader();
+        reader.onload = e => {
+            originalImageBase64 = e.target.result;
+            originalImageEl.src = originalImageBase64;
+            processedImageEl.src = originalImageBase64;
+            resetAll();
+            uploadArea.classList.add('hidden');
+            editorContainer.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    function resetAll() {
+        // Reset sliders
+        ['brightness', 'contrast', 'saturation'].forEach(id => {
+            document.getElementById(id).value = 0;
+            document.getElementById(id + 'Value').textContent = '0';
+        });
+        
+        // Reset custom dropdown to 'Original'
+        const defaultOption = filterOptions.querySelector('li[data-value="identity"]');
+        filterTrigger.querySelector('span').textContent = defaultOption.textContent.trim();
+        filterSelectInput.value = 'identity';
+        filterOptions.querySelectorAll('li span').forEach(span => span.classList.remove('font-semibold'));
+        defaultOption.querySelector('span').classList.add('font-semibold');
+
+        applyAndProcessImage();
+    }
+    
+    function showUploadArea() {
+        editorContainer.classList.add('hidden');
+        uploadArea.classList.remove('hidden');
+        imageUpload.value = '';
+        originalImageBase64 = null;
+    }
+
+    // --- SERVER COMMUNICATION ---
+    async function applyAndProcessImage() {
+        if (!originalImageBase64) return;
+        
+        smallSpinner.style.display = 'flex';
+
+        // Read value from the hidden input, which is updated by the custom dropdown
+        const filterType = filterSelectInput.value;
+        const filterName = filterTrigger.querySelector('span').textContent.trim();
+        const brightness = document.getElementById('brightness').value;
+        const contrast = document.getElementById('contrast').value;
+        const saturation = document.getElementById('saturation').value;
+        
+        filterInfoEl.textContent = `Filter: ${filterName}`;
+        
+        try {
+            const response = await fetch('/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: originalImageBase64,
+                    filter: filterType,
+                    brightness: brightness,
+                    contrast: contrast,
+                    saturation: saturation
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            const processedImageUrl = data.processed_image;
+            processedImageEl.src = processedImageUrl;
+            downloadButton.href = processedImageUrl;
+
+        } catch (error) {
+            console.error('Processing Error:', error);
+            alert(`An error occurred: ${error.message}`);
+            processedImageEl.src = originalImageBase64;
+            downloadButton.href = originalImageBase64;
+        } finally {
+            smallSpinner.style.display = 'none';
+        }
+    }
+    </script>
+</body>
+</html>
