@@ -1,6 +1,12 @@
 Installation and Usage Instructions
 =================================================
+## Preview Aplikasi
 
+### Halaman Awal
+![Halaman Awal](Halaman%20Awal.png)
+
+### Halaman Utama
+![Halaman Utama](Halaman%20Utama.png)
 INSTALLATION
 -----------
 
